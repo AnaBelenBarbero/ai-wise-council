@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "ai_wise_council"
+version = "0.1.0"
+description = ""
+authors = ["Ana Belen Barbero <anabarberocastejon@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "ai_wise_council", from = "." }
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+langchain-core = "^0.3.31"
+langgraph = "^0.2.66"
+ipykernel = "^6.29.5"
+python-dotenv = "^1.0.1"
+langchain-openai = "^0.3.1"
+langchain-anthropic = "^0.3.3"
+langchain = "^0.3.15"
+langchain-community = "^0.3.15"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
