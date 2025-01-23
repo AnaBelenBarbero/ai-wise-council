@@ -1,7 +1,8 @@
 from typing import Any, Callable, Sequence
-
+import os
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
+from langchain_openai import BaseChatOpenAI
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, trim_messages
 from langchain_core.prompts import ChatPromptTemplate
@@ -13,8 +14,14 @@ from typing_extensions import Annotated, TypedDict
 
 load_dotenv()
 
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+
 model_openai = ChatOpenAI(model="gpt-4o-mini", max_completion_tokens=100)
 model_anthropic = ChatAnthropic(model="claude-3-haiku-20240307")
+model_deepseek = BaseChatOpenAI(model="deepseek-chat",
+                                openai_api_key=DEEPSEEK_API_KEY,
+                                openai_api_base='https://api.deepseek.com',
+                                max_tokens=100)
 
 
 class State(TypedDict):
