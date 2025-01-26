@@ -9,7 +9,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.11,<3.13"
 langchain-core = "^0.3.31"
 langgraph = "^0.2.66"
 ipykernel = "^6.29.5"
