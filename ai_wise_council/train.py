@@ -271,3 +271,7 @@ if __name__ == "__main__":
     print("Starting training...")
     trainer.train()
     print("Training completed!")
+
+    print("Saving model...")
+    trainer.save_model("final_model")
+    print("Training completed and model saved to 'final_model' directory!")
