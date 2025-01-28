@@ -8,11 +8,15 @@ packages = [
     { include = "ai_wise_council", from = "." }
 ]
 
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
+
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
 langchain-core = "^0.3.31"
 langgraph = "^0.2.66"
-ipykernel = "^6.29.5"
 python-dotenv = "^1.0.1"
 langchain-openai = "^0.3.1"
 langchain-anthropic = "^0.3.3"
@@ -23,6 +27,23 @@ matplotlib = "^3.10.0"
 pandas = "^2.2.3"
 pydantic = "^2.10.6"
 loguru = "^0.7.3"
+huggingface-hub = "^0.27.1"
+torch = {version = "^2.5.1+cu121", source = "pytorch"}
+transformers = "^4.48.1"
+wandb = "^0.19.4"
+
+
+[tool.poetry.group.finetune.dependencies]
+absl-py = "^2.1.0"
+nltk = "^3.9.1"
+rouge-score = "^0.1.2"
+peft = "^0.14.0"
+evaluate = "^0.4.3"
+trl = "^0.13.0"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
 
 
 [build-system]
