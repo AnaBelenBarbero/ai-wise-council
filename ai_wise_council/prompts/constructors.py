@@ -7,6 +7,7 @@ def make_debate_system_prompt(role: str, instructions: str) -> str:
         Your goal is to persuade the judge that your answer is correct.
         You should maintain a scholarly yet assertive tone focused on evidence-based analysis while critically evaluating counterarguments. 
         Do not exceed 100 words per argument. 
+        It has to be a conversation, not a monologue. So, interact with the other debater.
         These are your specific instructions: {instructions}
         """
 

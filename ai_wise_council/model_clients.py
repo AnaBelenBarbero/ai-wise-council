@@ -11,7 +11,7 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 AVAILABLE_MODELS: list[str] = ["gpt-4o-mini", "claude-3-haiku-20240307", "deepseek-chat"]
 
 
-def get_model_client(model_name: str, max_completion_tokens: int = 700, temperature: float = 0.5) -> BaseChatOpenAI:
+def get_model_client(model_name: str, max_completion_tokens: int = 1000, temperature: float = 0.5) -> BaseChatOpenAI:
     if model_name == "gpt-4o-mini":
         return ChatOpenAI(model=model_name, max_completion_tokens=max_completion_tokens, temperature=temperature)
     elif model_name == "claude-3-haiku-20240307":

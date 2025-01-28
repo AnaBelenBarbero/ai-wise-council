@@ -81,7 +81,7 @@ class DebaterAgent(Agent):
         return react_agent.invoke(*args, **kwargs)
     
     def _process_first_message(self, initial_message: list[BaseMessage]) -> str:
-        return f"INITIAL STORY AND QUESTION: \n{initial_message[0].content}"
+        return f"STORY AND QUESTION: \n{initial_message[0].content}"
     
     def _process_conversation_history(self, conversation_history: list[BaseMessage]) -> str:
         parsed_history = []
@@ -92,11 +92,11 @@ class DebaterAgent(Agent):
             if message.additional_kwargs['debater_id'] == self.id_agent:
                 parsed_history.append(
                     f"""
-                    <YOUR MESSAGE> {message.content} </YOUR MESSAGE>\n
+                    <YOUR PREVIOUS MESSAGE> {message.content} </YOUR PREVIOUS MESSAGE>\n
                     """
                 )
             else:
-                parsed_history.append(f"<ADVERSARY MESSAGE> {message.content} </ADVERSARY MESSAGE>\n")
+                parsed_history.append(f"<ADVERSARY PREVIOUS MESSAGE> {message.content} </ADVERSARY PREVIOUS MESSAGE>\n")
             
         return "".join(parsed_history)
     
@@ -125,6 +125,7 @@ def create_debater(
     model: str,
     temperature: float,
     subrole: Literal["good_faith", "bad_faith"],
+    id_agent: int | None = None,
 ) -> DebaterAgent:
     # load specific instructions based on subrole
     if subrole == "good_faith":
@@ -138,6 +139,7 @@ def create_debater(
         role="debater",
         subrole=subrole,
         specific_instructions=specific_instructions,
+        id_agent=id_agent,
     )
 
 
