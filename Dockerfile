@@ -7,8 +7,6 @@ WORKDIR /code
 
 COPY pyproject.toml poetry.lock README.md ./
 
-COPY data/ ./data
-
 COPY ai_wise_council/ ./ai_wise_council
 
 RUN pip3 install --no-cache-dir poetry==${POETRY_VERSION} \ 
@@ -16,5 +14,7 @@ RUN pip3 install --no-cache-dir poetry==${POETRY_VERSION} \
 
 # main and finetune
 RUN poetry install --with finetune --no-interaction --no-ansi
+
+COPY data/ ./data
 
 CMD ["poetry", "run", "python", "ai_wise_council/train.py"]

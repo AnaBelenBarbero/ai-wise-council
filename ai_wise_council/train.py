@@ -251,7 +251,7 @@ def create_trainer(
         args=args,
     )
 
-def main():
+def main(training_args):
     print("Loading dataset...")
     df = load_dataset()
     print("Setting up model and tokenizer...")
@@ -267,7 +267,7 @@ def main():
     print("Dataset objects created successfully")
 
     print("Initializing trainer...")
-    trainer = create_trainer(model, train_dataset, test_dataset)
+    trainer = create_trainer(model, train_dataset, test_dataset, training_args)
 
     print("Starting training...")
     trainer.train()
@@ -278,4 +278,5 @@ def main():
     print("Training completed and model saved to 'final_model' directory!")
 
 if __name__ == "__main__":
-    main()
+    training_args=None
+    main(training_args)
