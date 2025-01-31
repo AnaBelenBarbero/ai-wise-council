@@ -22,7 +22,7 @@ from trl import SFTTrainer
 
 
 load_dotenv()
-wandb.login(key=os.getenv("WAB_KEY"), verify=True)
+#wandb.login(key=os.getenv("WAB_KEY"), verify=True)
 
 
 DEVICE_MAP = {"": 0}
@@ -105,7 +105,7 @@ def load_dataset() -> pd.DataFrame:
     from pathlib import Path
 
     # english
-    df_3k_neg = pd.read_csv(Path(__file__).parents[1] / "notebooks/data/output/debate_dataset.csv")
+    df_3k_neg = pd.read_csv(Path(__file__).parents[1] / "data/output/debate_dataset.csv")
     return df_3k_neg
 
 
@@ -248,12 +248,13 @@ def create_trainer(
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         peft_config=peft_config,
-        tokenizer=tokenizer,
         args=args,
     )
 
-if __name__ == "__main__":
+def main():
+    print("Loading dataset...")
     df = load_dataset()
+    print("Setting up model and tokenizer...")
     model, tokenizer = setup_model_and_tokenizer(model_name)
     
     print("Preparing and splitting dataset encodings...")
@@ -275,3 +276,6 @@ if __name__ == "__main__":
     print("Saving model...")
     trainer.save_model("final_model")
     print("Training completed and model saved to 'final_model' directory!")
+
+if __name__ == "__main__":
+    main()

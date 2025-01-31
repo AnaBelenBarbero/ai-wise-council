@@ -8,7 +8,7 @@ from langgraph.graph import END
 from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel
 
-from ai_wise_council.model_clients import get_model_client
+from ai_wise_council.components.model_clients import get_model_client
 from ai_wise_council.prompts.constructors import make_debate_system_prompt, make_judge_system_prompt
 from ai_wise_council.prompts.instructions import (
     bad_faith_instructions,
