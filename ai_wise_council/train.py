@@ -17,15 +17,16 @@ from transformers import (
 from transformers.tokenization_utils_base import BatchEncoding
 from peft import LoraConfig, TaskType
 import evaluate
-import wandb
+#import wandb
 from trl import SFTTrainer
-
+import os
 
 load_dotenv()
 #wandb.login(key=os.getenv("WAB_KEY"), verify=True)
 
 
 DEVICE_MAP = {"": 0}
+CACHE_DIR = os.getenv("CACHE_DIR")
 
 
 class PromptDataset(Dataset):
@@ -47,14 +48,12 @@ class PromptDataset(Dataset):
 # https://huggingface.co/microsoft/Phi-3-mini-128k-instruct/blob/main/sample_finetune.py
 model_id = "microsoft/Phi-3-mini-4k-instruct"
 model_name = "microsoft/Phi-3-mini-4k-instruct"
-dataset_name = "iamtarun/python_code_instructions_18k_alpaca"
-dataset_split= "train"
 new_model = "ai-wise-council"
 hf_model_repo="UserName/"+new_model
 # LoRA parameters
-lora_r = 16
-lora_alpha = 16
-lora_dropout = 0.05
+lora_r = 6
+lora_alpha = 6
+lora_dropout = 0.15
 target_modules= ['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj"]
 
 
@@ -78,12 +77,14 @@ def setup_model_and_tokenizer(
         attn_implementation = 'sdpa'
     
     model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, use_auth_token=True, 
+        model_name, 
+        use_auth_token=True, 
         torch_dtype=compute_dtype,
         attn_implementation=attn_implementation,
         device_map=DEVICE_MAP,
+        cache_dir=CACHE_DIR,
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=True, cache_dir=CACHE_DIR)
     tokenizer.model_max_length = 2048
     tokenizer.pad_token = tokenizer.unk_token  # use unk rather than eos token to prevent endless generation
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
@@ -210,11 +211,15 @@ def create_trainer(
     #model = model.to(device)
     #print(next(model.parameters()).device)
 
-    wandb.init(project=new_model, name = "phi-3-mini-ft-py-3e")
+    #wandb.init(project=new_model, name = "phi-3-mini-ft-py-3e")
 
     if training_args is None:
+        output_dir="./phi-3-mini-LoRA"
+        if CACHE_DIR:
+            output_dir = os.path.join(CACHE_DIR, "phi-3-mini-LoRA")
+
         args = TrainingArguments(
-            output_dir="./phi-3-mini-LoRA",
+            output_dir=output_dir,
             evaluation_strategy="steps",
             do_eval=True,
             optim="adamw_torch",
@@ -231,7 +236,7 @@ def create_trainer(
             num_train_epochs=3,
             warmup_ratio=0.1,
             lr_scheduler_type="linear",
-            report_to="wandb",
+            #report_to="wandb",
             seed=42,
         )
 
@@ -252,11 +257,14 @@ def create_trainer(
     )
 
 def main(training_args):
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
+    print(f"CACHE_DIR: {CACHE_DIR}")
     print("Loading dataset...")
     df = load_dataset()
     print("Setting up model and tokenizer...")
     model, tokenizer = setup_model_and_tokenizer(model_name)
-    
     print("Preparing and splitting dataset encodings...")
     train_encodings, test_encodings, df_train, df_test = prepare_datasets(df, tokenizer)
     print(f"Split into {len(df_train)} training and {len(df_test)} test examples")

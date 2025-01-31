@@ -30,7 +30,6 @@ loguru = "^0.7.3"
 huggingface-hub = "^0.27.1"
 torch = {version = "^2.5.1+cu121", source = "pytorch"}
 transformers = "^4.48.1"
-wandb = "^0.19.4"
 
 
 [tool.poetry.group.finetune.dependencies]
