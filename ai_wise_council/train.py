@@ -6,13 +6,16 @@ from typing import Tuple
 import evaluate
 import numpy as np
 import pandas as pd
+import bitsandbytes as bnb
 import torch
 from dotenv import load_dotenv
 from peft import LoraConfig, TaskType
 from torch.utils.data import Dataset
 from transformers import (
+    AutoModelForCausalLM,
     AutoModelForSequenceClassification,
     AutoTokenizer,
+    BitsAndBytesConfig,
     Trainer,
     TrainingArguments,
 )
@@ -80,32 +83,29 @@ def setup_model_and_tokenizer(
     Returns:
         Tuple of (model, tokenizer)
     """
-    if torch.cuda.is_bf16_supported() and False:  # TODO: UNMOCK
-        compute_dtype = torch.bfloat16
-        attn_implementation = "flash_attention_2"
-    else:
-        compute_dtype = torch.float16
-        attn_implementation = "sdpa"
 
-    model = AutoModelForSequenceClassification.from_pretrained(
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=False,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype="float16",
+    )
+
+    model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        use_auth_token=True,
-        torch_dtype=compute_dtype,
-        attn_implementation=attn_implementation,
-        device_map=DEVICE_MAP,
+        device_map="auto",
+        torch_dtype="float16",
+        quantization_config=bnb_config, 
         cache_dir=CACHE_DIR,
     )
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_name, use_auth_token=True, cache_dir=CACHE_DIR
-    )
-    tokenizer.model_max_length = 2048
-    tokenizer.pad_token = (
-        tokenizer.unk_token
-    )  # use unk rather than eos token to prevent endless generation
-    tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
-    tokenizer.padding_side = "right"
-    return model, tokenizer
 
+    model.config.use_cache = False
+    model.config.pretraining_tp = 1
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=CACHE_DIR)
+
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    return model, tokenizer
 
 def load_dataset() -> pd.DataFrame:
     """
@@ -122,10 +122,10 @@ def load_dataset() -> pd.DataFrame:
     from pathlib import Path
 
     # english
-    df_3k_neg = pd.read_csv(
+    df = pd.read_csv(
         Path(__file__).parents[1] / "data/output/debate_dataset.csv"
     )
-    return df_3k_neg
+    return df
 
 
 def prepare_datasets(
