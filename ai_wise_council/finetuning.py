@@ -1,11 +1,15 @@
 import os
 import random
 from itertools import product
+from huggingface_hub import upload_file
+from huggingface_hub import login
 
 import torch
 
 from ai_wise_council import CACHE_DIR
 from ai_wise_council.train import run_training
+
+login(token=os.getenv("HF_TOKEN"))
 
 PARAM_GRID = {
     "learning_rate": [1e-5, 5e-5],
@@ -68,6 +72,47 @@ def run_finetuning(n_max_combinations: int):
 
     return results, best_params
 
+def upload_huggingface_model():
+    upload_file(
+        path_or_fileobj=os.path.join(CACHE_DIR, "best_model", "model.safetensors"),
+        path_in_repo="model.safetensors",
+        repo_id="ana-contrasto-ai/ai-wise-council",
+    )
+    upload_file(
+        path_or_fileobj=os.path.join(CACHE_DIR, "best_model", "config.json"),
+        path_in_repo="config.json",
+        repo_id="ana-contrasto-ai/ai-wise-council",
+    )
+    upload_file(
+        path_or_fileobj=os.path.join(CACHE_DIR, "best_model", "special_tokens_map.json"),
+        path_in_repo="special_tokens_map.json", 
+        repo_id="ana-contrasto-ai/ai-wise-council",
+    )
+    upload_file(
+        path_or_fileobj=os.path.join(CACHE_DIR, "best_model", "tokenizer_config.json"),
+        path_in_repo="tokenizer_config.json",
+        repo_id="ana-contrasto-ai/ai-wise-council", 
+    )
+    upload_file(
+        path_or_fileobj=os.path.join(CACHE_DIR, "best_model", "tokenizer.json"),
+        path_in_repo="tokenizer.json",
+        repo_id="ana-contrasto-ai/ai-wise-council", 
+    )
+    upload_file(
+        path_or_fileobj=os.path.join(CACHE_DIR, "best_model", "vocab.txt"),
+        path_in_repo="vocab.txt",
+        repo_id="ana-contrasto-ai/ai-wise-council", 
+    )
 
 if __name__ == "__main__":
-    run_finetuning(4)
+    import argparse
+ 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_max_combinations", type=int, default=4)
+    parser.add_argument("--dry_run", type=bool, default=False)
+
+    args = parser.parse_args()
+
+    results, best_params = run_finetuning(args.n_max_combinations)
+    if not args.dry_run:
+        upload_huggingface_model()
