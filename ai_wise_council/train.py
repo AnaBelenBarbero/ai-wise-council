@@ -1,12 +1,14 @@
-from typing import Tuple
 import os
 import re
 import string
+from typing import Tuple
 
+import evaluate
 import numpy as np
 import pandas as pd
 import torch
 from dotenv import load_dotenv
+from peft import LoraConfig, TaskType
 from torch.utils.data import Dataset
 from transformers import (
     AutoModelForSequenceClassification,
@@ -15,18 +17,17 @@ from transformers import (
     TrainingArguments,
 )
 from transformers.tokenization_utils_base import BatchEncoding
-from peft import LoraConfig, TaskType
-import evaluate
-#import wandb
+
+# import wandb
 from trl import SFTTrainer
-import os
+
+from ai_wise_council import CACHE_DIR
 
 load_dotenv()
-#wandb.login(key=os.getenv("WAB_KEY"), verify=True)
+# wandb.login(key=os.getenv("WAB_KEY"), verify=True)
 
 
 DEVICE_MAP = {"": 0}
-CACHE_DIR = os.getenv("CACHE_DIR")
 
 
 class PromptDataset(Dataset):
@@ -44,17 +45,27 @@ class PromptDataset(Dataset):
     def __len__(self):
         return len(self.labels)
 
+
+# https://www.datacamp.com/tutorial/fine-tuning-phi-3-5
 # https://github.com/microsoft/Phi-3CookBook/blob/main/code/04.Finetuning/Phi-3-finetune-lora-python.ipynb
 # https://huggingface.co/microsoft/Phi-3-mini-128k-instruct/blob/main/sample_finetune.py
 model_id = "microsoft/Phi-3-mini-4k-instruct"
 model_name = "microsoft/Phi-3-mini-4k-instruct"
 new_model = "ai-wise-council"
-hf_model_repo="UserName/"+new_model
+hf_model_repo = "UserName/" + new_model
 # LoRA parameters
-lora_r = 1
-lora_alpha = 1
-lora_dropout = 1
-target_modules= ['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj"]
+lora_alpha = 16
+lora_dropout = 0
+lora_r = 64
+target_modules = [
+    "k_proj",
+    "q_proj",
+    "v_proj",
+    "o_proj",
+    "gate_proj",
+    "down_proj",
+    "up_proj",
+]
 
 
 def setup_model_and_tokenizer(
@@ -69,27 +80,32 @@ def setup_model_and_tokenizer(
     Returns:
         Tuple of (model, tokenizer)
     """
-    if torch.cuda.is_bf16_supported() and False: # TODO: UNMOCK
+    if torch.cuda.is_bf16_supported() and False:  # TODO: UNMOCK
         compute_dtype = torch.bfloat16
-        attn_implementation = 'flash_attention_2'
+        attn_implementation = "flash_attention_2"
     else:
         compute_dtype = torch.float16
-        attn_implementation = 'sdpa'
-    
+        attn_implementation = "sdpa"
+
     model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, 
-        use_auth_token=True, 
+        model_name,
+        use_auth_token=True,
         torch_dtype=compute_dtype,
         attn_implementation=attn_implementation,
         device_map=DEVICE_MAP,
         cache_dir=CACHE_DIR,
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=True, cache_dir=CACHE_DIR)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name, use_auth_token=True, cache_dir=CACHE_DIR
+    )
     tokenizer.model_max_length = 2048
-    tokenizer.pad_token = tokenizer.unk_token  # use unk rather than eos token to prevent endless generation
+    tokenizer.pad_token = (
+        tokenizer.unk_token
+    )  # use unk rather than eos token to prevent endless generation
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
-    tokenizer.padding_side = 'right'
+    tokenizer.padding_side = "right"
     return model, tokenizer
+
 
 def load_dataset() -> pd.DataFrame:
     """
@@ -106,7 +122,9 @@ def load_dataset() -> pd.DataFrame:
     from pathlib import Path
 
     # english
-    df_3k_neg = pd.read_csv(Path(__file__).parents[1] / "data/output/debate_dataset.csv")
+    df_3k_neg = pd.read_csv(
+        Path(__file__).parents[1] / "data/output/debate_dataset.csv"
+    )
     return df_3k_neg
 
 
@@ -124,6 +142,7 @@ def prepare_datasets(
     Returns:
         Tuple of (train_encodings, test_encodings, train_df, test_df)
     """
+
     def _replace_debater_ids(text: str, id_debater_good_faith: str) -> str:
         """
         Replace debater IDs with uppercase letters (A, B, C, etc.) while preserving order
@@ -134,24 +153,30 @@ def prepare_datasets(
         Returns:
             Text with debater IDs replaced by uppercase letters
         """
-        debater_ids = re.findall(r'<DEBATER ID: (\d+)>', text)
+        debater_ids = re.findall(r"<DEBATER ID: (\d+)>", text)
         unique_ids = list(dict.fromkeys(debater_ids))  # preserve order of appearance
 
         result = text
-        id_debater_good_faith_new = ''
+        id_debater_good_faith_new = ""
         for i, id in enumerate(unique_ids):
             upper_str = string.ascii_uppercase[i]
             result = result.replace(f"<DEBATER ID: {id}>", f"<DEBATER ID: {upper_str}>")
-            result = result.replace(f"</DEBATER ID: {id}>", f"<DEBATER ID: {upper_str}>")
+            result = result.replace(
+                f"</DEBATER ID: {id}>", f"<DEBATER ID: {upper_str}>"
+            )
             if str(id) == str(id_debater_good_faith):
                 id_debater_good_faith_new = i
         return result, id_debater_good_faith_new
-    
+
     df_train = df.sample(frac=train_size, random_state=42)
     df_test = df.drop(df_train.index)
-    
+
     # Replace the loop with apply
-    df_train[["debate", "id_debater_good_faith"]] = df_train.apply(lambda x: _replace_debater_ids(x.debate, x.id_debater_good_faith), axis=1, result_type='expand')
+    df_train[["debate", "id_debater_good_faith"]] = df_train.apply(
+        lambda x: _replace_debater_ids(x.debate, x.id_debater_good_faith),
+        axis=1,
+        result_type="expand",
+    )
 
     # tokenize
     train_encodings: BatchEncoding | dict = tokenizer(
@@ -189,6 +214,7 @@ def compute_metrics(eval_pred) -> dict:
     predictions = np.argmax(logits, axis=-1)
     return metric.compute(predictions=predictions, references=labels)
 
+
 def create_trainer(
     model: AutoModelForSequenceClassification,
     train_dataset: PromptDataset,
@@ -207,53 +233,60 @@ def create_trainer(
     Returns:
         Trainer instance
     """
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #model = model.to(device)
-    #print(next(model.parameters()).device)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # model = model.to(device)
+    # print(next(model.parameters()).device)
 
-    #wandb.init(project=new_model, name = "phi-3-mini-ft-py-3e")
+    # wandb.init(project=new_model, name = "phi-3-mini-ft-py-3e")
 
     if training_args is None:
         # default parameters
         training_args = {
-            'learning_rate': 1e-4,
-            'per_device_train_batch_size': 8,
-            'per_device_eval_batch_size': 8,
-            'num_train_epochs': 3,
-            'warmup_ratio': 0.1,
+            "learning_rate": 1e-4,
+            "per_device_train_batch_size": 8,
+            "per_device_eval_batch_size": 8,
+            "num_train_epochs": 3,
+            "warmup_ratio": 0.1,
         }
 
-    output_dir="./phi-3-mini-LoRA"
+    output_dir = "./phi-3-mini-LoRA"
     if CACHE_DIR:
         output_dir = os.path.join(CACHE_DIR, "phi-3-mini-LoRA")
 
     training_args = TrainingArguments(
         output_dir=output_dir,
-        evaluation_strategy="steps",
-        do_eval=True,
-        optim="adamw_torch",
-        per_device_train_batch_size=training_args['per_device_train_batch_size'],
-        per_device_eval_batch_size=training_args['per_device_eval_batch_size'],
-        gradient_accumulation_steps=4,
-        log_level="debug",
-        save_strategy="epoch",
+        num_train_epochs=training_args["num_train_epochs"],
+        per_device_train_batch_size=training_args["per_device_train_batch_size"],
+        gradient_accumulation_steps=training_args[
+            "gradient_accumulation_steps"
+        ],  # number of steps before performing a backward/update pass
+        gradient_checkpointing=True,  # use gradient checkpointing to save memory
+        optim="paged_adamw_8bit",
         logging_steps=100,
         learning_rate=training_args["learning_rate"],
-        fp16 = not torch.cuda.is_bf16_supported(),
-        bf16 = torch.cuda.is_bf16_supported(),
-        eval_steps=100,
-        num_train_epochs=training_args['num_train_epochs'],
-        warmup_ratio=training_args['warmup_ratio'],
-        lr_scheduler_type="linear",
-        #report_to="wandb",
+        weight_decay=0.001,
+        fp16=not torch.cuda.is_bf16_supported(),
+        bf16=torch.cuda.is_bf16_supported(),
+        max_grad_norm=0.3,  # max gradient norm based on QLoRA paper
+        max_steps=-1,
+        warmup_ratio=training_args["warmup_ratio"],
+        evaluation_strategy="steps",
+        lr_scheduler_type="cosine",  # use cosine learning rate scheduler
+        eval_strategy="steps",  # save checkpoint every epoch
+        eval_steps=0.2,
+        # do_eval=True,
+        # log_level="debug",
+        # save_strategy="epoch",
+        # report_to="wandb",
     )
 
     peft_config = LoraConfig(
-            r=lora_r,
-            lora_alpha=lora_alpha,
-            lora_dropout=lora_dropout,
-            task_type=TaskType.CAUSAL_LM,
-            target_modules=target_modules,
+        lora_alpha=lora_alpha,
+        lora_dropout=lora_dropout,
+        r=lora_r,
+        bias="none",
+        task_type=TaskType.CAUSAL_LM,
+        target_modules=target_modules,
     )
 
     return SFTTrainer(
@@ -264,8 +297,10 @@ def create_trainer(
         args=training_args,
     )
 
+
 def run_training(training_args):
     import logging
+
     logging.basicConfig(level=logging.INFO)
 
     print(f"CACHE_DIR: {CACHE_DIR}")
@@ -278,8 +313,12 @@ def run_training(training_args):
     print(f"Split into {len(df_train)} training and {len(df_test)} test examples")
 
     print("Creating dataset objects...")
-    train_dataset = PromptDataset(train_encodings, df_train["id_debater_good_faith"].tolist())
-    test_dataset = PromptDataset(test_encodings, df_test["id_debater_good_faith"].tolist())
+    train_dataset = PromptDataset(
+        train_encodings, df_train["id_debater_good_faith"].tolist()
+    )
+    test_dataset = PromptDataset(
+        test_encodings, df_test["id_debater_good_faith"].tolist()
+    )
     print("Dataset objects created successfully")
 
     print("Initializing trainer...")
@@ -291,10 +330,11 @@ def run_training(training_args):
 
     return trainer
 
-    #print("Saving model...")
-    #trainer.save_model("final_model")
-    #print("Training completed and model saved to 'final_model' directory!")
+    # print("Saving model...")
+    # trainer.save_model("final_model")
+    # print("Training completed and model saved to 'final_model' directory!")
+
 
 if __name__ == "__main__":
-    training_args=None
+    training_args = None
     run_training(training_args)
