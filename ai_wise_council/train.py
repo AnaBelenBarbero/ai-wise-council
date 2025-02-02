@@ -51,9 +51,9 @@ model_name = "microsoft/Phi-3-mini-4k-instruct"
 new_model = "ai-wise-council"
 hf_model_repo="UserName/"+new_model
 # LoRA parameters
-lora_r = 6
-lora_alpha = 6
-lora_dropout = 0.15
+lora_r = 1
+lora_alpha = 1
+lora_dropout = 1
 target_modules= ['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj"]
 
 
@@ -214,49 +214,57 @@ def create_trainer(
     #wandb.init(project=new_model, name = "phi-3-mini-ft-py-3e")
 
     if training_args is None:
-        output_dir="./phi-3-mini-LoRA"
-        if CACHE_DIR:
-            output_dir = os.path.join(CACHE_DIR, "phi-3-mini-LoRA")
+        # default parameters
+        training_args = {
+            'learning_rate': 1e-4,
+            'per_device_train_batch_size': 8,
+            'per_device_eval_batch_size': 8,
+            'num_train_epochs': 3,
+            'warmup_ratio': 0.1,
+        }
 
-        args = TrainingArguments(
-            output_dir=output_dir,
-            evaluation_strategy="steps",
-            do_eval=True,
-            optim="adamw_torch",
-            per_device_train_batch_size=8,
-            gradient_accumulation_steps=4,
-            per_device_eval_batch_size=8,
-            log_level="debug",
-            save_strategy="epoch",
-            logging_steps=100,
-            learning_rate=1e-4,
-            fp16 = not torch.cuda.is_bf16_supported(),
-            bf16 = torch.cuda.is_bf16_supported(),
-            eval_steps=100,
-            num_train_epochs=3,
-            warmup_ratio=0.1,
-            lr_scheduler_type="linear",
-            #report_to="wandb",
-            seed=42,
-        )
+    output_dir="./phi-3-mini-LoRA"
+    if CACHE_DIR:
+        output_dir = os.path.join(CACHE_DIR, "phi-3-mini-LoRA")
 
-        peft_config = LoraConfig(
-                r=lora_r,
-                lora_alpha=lora_alpha,
-                lora_dropout=lora_dropout,
-                task_type=TaskType.CAUSAL_LM,
-                target_modules=target_modules,
-        )
+    training_args = TrainingArguments(
+        output_dir=output_dir,
+        evaluation_strategy="steps",
+        do_eval=True,
+        optim="adamw_torch",
+        per_device_train_batch_size=training_args['per_device_train_batch_size'],
+        per_device_eval_batch_size=training_args['per_device_eval_batch_size'],
+        gradient_accumulation_steps=4,
+        log_level="debug",
+        save_strategy="epoch",
+        logging_steps=100,
+        learning_rate=training_args["learning_rate"],
+        fp16 = not torch.cuda.is_bf16_supported(),
+        bf16 = torch.cuda.is_bf16_supported(),
+        eval_steps=100,
+        num_train_epochs=training_args['num_train_epochs'],
+        warmup_ratio=training_args['warmup_ratio'],
+        lr_scheduler_type="linear",
+        #report_to="wandb",
+    )
+
+    peft_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            task_type=TaskType.CAUSAL_LM,
+            target_modules=target_modules,
+    )
 
     return SFTTrainer(
         model=model,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         peft_config=peft_config,
-        args=args,
+        args=training_args,
     )
 
-def main(training_args):
+def run_training(training_args):
     import logging
     logging.basicConfig(level=logging.INFO)
 
@@ -281,10 +289,12 @@ def main(training_args):
     trainer.train()
     print("Training completed!")
 
-    print("Saving model...")
-    trainer.save_model("final_model")
-    print("Training completed and model saved to 'final_model' directory!")
+    return trainer
+
+    #print("Saving model...")
+    #trainer.save_model("final_model")
+    #print("Training completed and model saved to 'final_model' directory!")
 
 if __name__ == "__main__":
     training_args=None
-    main(training_args)
+    run_training(training_args)
