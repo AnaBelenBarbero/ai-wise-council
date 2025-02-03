@@ -29,22 +29,23 @@
 
 The challenge of AI oversight
 
-As AI systems become increasingly sophisticated, **we face a critical challenge in ensuring their proper behavior**. Currently, human review and data labeling are the primary methods for training AI models - a requirement even mandated by the EU AI Act. However, this raises an important question: As AI systems surpass human knowledge, how can we effectively validate their performance? Should we rely on simpler AI models to oversee more advanced ones, or will human oversight remain sufficient?
+As AI systems become increasingly sophisticated, **we face a critical challenge in ensuring their proper behavior**. Currently, human review and data labeling are the primary methods for training AI models - a requirement even mandated by the EU AI Act. However, this raises an important question: As AI systems surpass human knowledge, how can we effectively validate their performance? Will human oversight remain sufficient? or should we rely on AI models to oversee more advanced ones?
 
-Our solution: AI wise council
+Our approach: AI wise council
 
 AI wise council addresses this challenge through an innovative approach to AI decision-making. Drawing inspiration from **Anthropic's research on [scalable oversight](https://arxiv.org/pdf/2402.06782)**, we've developed a virtual council system that combines multiple specialized AI models. 
 
 Here's how it works:
 
-- Multiple AI models serve as expert debaters.
-- Each model contributes its unique expertise and perspective. One model is a truth-telling council member, another is a deceptive council member, and the third is a judge that evaluates arguments and detects deception.
-- We have fintuned a weak Judge model to oversee the process, evaluating:
-  - Argument quality
-  - Logical consistency
-  - Overall reasoning
+- 2 AI models (randomly selected from OpenAI, Anthropic, DeepSeek) serve as expert debaters.
+- The debaters receive a context and a query about it. 
+- Each model contributes its unique expertise and perspective regarding the query. One model is a truth-telling council member while another is a deceptive council member.
+- We have fintuned a weak Judge model (phi-3-mini) to oversee the process. This model does not receive the context, only the debaters' arguments. 
+- Finally, the Judge model evaluates the debaters' arguments and detects who is telling the truth.
 
-This council-based architecture produces more balanced and comprehensive responses than single-model systems. With this approach, we achieve more reliable and thoughtful AI outputs while addressing the fundamental challenge of AI oversight.
+To see the dynamic of the debate, check the `01_agentic_debate.ipynb` notebook.
+
+With this approach, we achieve more reliable and thoughtful AI outputs while addressing the fundamental challenge of AI oversight!
 
 *This projects is part of the 2st capstone of [Datatalks Machine Learning Engineering zoomcamp](https://github.com/DataTalksClub/machine-learning-zoomcamp/tree/master).*
 
@@ -110,7 +111,7 @@ We have trained the model on [Runpod](https://www.runpod.io/) in A6000 GPU durin
 
 ### 2. Training Steps 🏋️‍♀🏋
 
-#### Pre-trained transfer learning
+#### A. Pre-trained transfer learning
 
 This step loads the pretrained `phi-3-mini` model as a starting point for fine-tuning.
 
@@ -119,36 +120,31 @@ Key features of Phi-3 mini:
 - Lightweight, state-of-the-art open model.
 - Learn more: [Phi-3 Mini Documentation](https://ollama.com/library/phi3:mini).
 
-This model represents the weak judge. 
+This model represents the "weak judge" who is going to supervise the debate and detect the debater that is telling the truth.
 
-#### Fine tune: data generation and hyperparameter tunning
+#### B. Fine tune: data generation and hyperparameter tunning
 
-We have generated a dataset of debates (with 3 rounds). In each debate, we randomly select 2 models to act as debaters (OpenAI, Anthropic and DeepSeek). The data generation process is described in `02_generate_dataset.ipynb`.
+We have generated a dataset of debates (with 3 rounds of interactions). In each debate, we randomly select 2 models to act as debaters (OpenAI, Anthropic and DeepSeek). The data generation process is described in `02_generate_dataset.ipynb`.
 
-Exploratory Data Analysis (EDA) is described in `03_EDA.ipynb`.
+After some EDA and preprocessing (described in `03_EDA.ipynb`), we have performed hyperparameter tuning to optimize the model’s performance.
 
-We have performed hyperparameter tuning to optimize the model’s performance.
+##### C. Run the training
 
-##### Run the training
+The default entrypoint as we can see it in the Dockerfile is the finetuning process `poetry run python ai_wise_council/finetuning.py`.
 
-The training process can be executed either locally or on RunPod, depending on your hardware resources, specified above.
-
-```bash
-make run-train
-```
+The training process can be executed either locally or on any GPU provider like RunPod, depending on your hardware resources, specified above.
 
 To train on RunPod:
-
-1. Create a RunPod account and set up a CUDA GPU for training
-2. Set up a RunPod account and configure your API keys
-3. Update the `Makefile` with your RunPod API key
-4. Build and push the Docker image
+1. Create a RunPod account and set up a CUDA GPU for training.
+2. Build and push the Docker image to the Docker Hub
+3. Create a template in RunPod with the Docker image, resources, ENVARS and volume persistence.
+4. Run the instance and automatically the finetune process will be executed, the model will be uploaded to Hugging Face and stored in `CACHE_DIR`.
 
 <div align="center">
-<img alt="runpod" src="./data/images/runpod.png">
+<img alt="runpod" src="../data/images/runpod.jpeg" height="200">
 </div>
 
-#### Upload trained model to Hugging Face
+#### D. Upload trained model to Hugging Face
 
 Once training is complete, we upload the [saved model](https://huggingface.co/ana-contrasto-ai/ai-wise-council/tree/main) to Hugging Face for easy deployment and sharing. 
 
@@ -160,7 +156,7 @@ Clone the repository:
    cd ai-wise-council
    ```
 
-#### a) Run local venv
+#### A. Run local venv
 1. Install dependencies:
 
     ```bash
@@ -173,20 +169,28 @@ Clone the repository:
     make run-api-dev
     ```
 
-#### b) Run local Docker container
-1. Build the container:
+#### B. Run local Docker container
+1. Run the train container dev:
 
     ```bash
-    make docker-build-local
+    make run-docker-dev
     ```
 
-2. Run the container, mapped to `localhost:80`:
+2. Run the predictcontainer, mapped to `localhost:80`:
 
     ```bash
-    make docker-run-local
+    make docker-build-predict
     ```
 
-#### c) GCP Cloud run deployed
-The `deploy` branch of the project is synced with GCP Cloud Run via Continuous Deployment (CD), so any commit merged there will be built and deployed automatically.
+Check the first part of `04_call_api.ipynb` for local inference testing.
 
-Check `04_calling_GCP_deployed_model.ipynb` for authentication and request-building details.
+#### C. GCP Cloud run deployed
+This time the deploy is not handled with an specific Github branch, but by pushing newversions of the image to the DOCKER HUB. 
+
+<div align="center">
+<img alt="dockerhub" src="../data/images/dockerhub.png" height="200">
+</div>
+
+Then with a GCP Cloud Run instance, the image will be extracted and deployed automatically. The entrypoint is overridden with the predict FastAPI server.
+
+Check the second part of `04_call_api.ipynb` for GCP authentication and request-building details.
