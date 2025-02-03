@@ -141,7 +141,7 @@ To train on RunPod:
 4. Run the instance and automatically the finetune process will be executed, the model will be uploaded to Hugging Face and stored in `CACHE_DIR`.
 
 <div align="center">
-<img alt="runpod" src="../data/images/runpod.jpeg" height="200">
+<img alt="runpod" src="data/images/runpod.jpeg" height="200">
 </div>
 
 #### D. Upload trained model to Hugging Face
@@ -188,7 +188,7 @@ Check the first part of `04_call_api.ipynb` for local inference testing.
 This time the deploy is not handled with an specific Github branch, but by pushing newversions of the image to the DOCKER HUB. 
 
 <div align="center">
-<img alt="dockerhub" src="../data/images/dockerhub.png" height="200">
+<img alt="dockerhub" src="data/images/docker_hub.png" height="200">
 </div>
 
 Then with a GCP Cloud Run instance, the image will be extracted and deployed automatically. The entrypoint is overridden with the predict FastAPI server.
