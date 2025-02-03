@@ -109,19 +109,16 @@ def setup_model_and_tokenizer(
 
 def load_dataset() -> pd.DataFrame:
     """
-    Load and combine all datasets
-
-    Args:
-        english_path: Path to English dataset
-        spanish_jailbreak_path: Path to Spanish jailbreak dataset
-        spanish_benign_path: Path to Spanish benign dataset
+    Load the debate dataset from CSV file.
+    The dataset contains debate conversations between AI agents, where one agent argues in good faith
+    and another argues in bad faith. The dataset is stored in data/output/debate_dataset.csv
+    relative to the project root.
 
     Returns:
-        Combined DataFrame
+        pd.DataFrame: DataFrame containing the debate conversations and metadata
     """
     from pathlib import Path
 
-    # english
     df = pd.read_csv(
         Path(__file__).parents[1] / "data/output/debate_dataset.csv"
     )
