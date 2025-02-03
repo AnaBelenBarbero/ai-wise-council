@@ -19,3 +19,11 @@ upload-container-to-gcr:
 upd:
 	docker build -f Dockerfile -t us-central1-docker.pkg.dev/prefab-passage-446711-h8/vertex-repository/ai-wise-council:v0.0.1 ./
 	docker push us-central1-docker.pkg.dev/prefab-passage-446711-h8/vertex-repository/ai-wise-council:v0.0.1
+
+docker build:
+	docker build -f Dockerfile -t anabelenbarbero/ai-wise-council:v0.0.2 ./
+	
+push to docker hub:
+	docker tag sha256:017620e3e0deea8436ed181a0e82c4871d0e4400f334f8466d78179c43d2763d anabelenbarbero/ai-wise-council:v0.0.2
+	docker push anabelenbarbero/ai-wise-council:v0.0.2
+

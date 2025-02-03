@@ -32,6 +32,8 @@ torch = {version = "^2.5.1+cu121", source = "pytorch"}
 transformers = "^4.48.1"
 bitsandbytes = "^0.45.1"
 seaborn = "^0.13.2"
+tiktoken = "^0.8.0"
+fastapi = {extras = ["standard"], version = "^0.115.8"}
 
 
 [tool.poetry.group.finetune.dependencies]

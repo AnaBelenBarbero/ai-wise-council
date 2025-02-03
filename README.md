@@ -78,7 +78,7 @@ System prompts and agent instructions:
 - `02_generate_dataset.ipynb`: Fine-tuning dataset generation
 
 ### StateGraph Visualization
-![StateGraph](data/images/stategraph.png)
+![StateGraph](data/images/stategraphlg.png)
 
 The StateGraph above illustrates the debate flow between agents, showing:
 - Initial random selection between good and bad faith agents
