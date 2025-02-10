@@ -20,6 +20,12 @@
 </a></div>
 <br/>
 
+
+<div align="center">
+<img alt="LLMasjudge" src="./data/images/LLMasjudge.png.png" height="400">
+</div>
+<br/>
+
 ## Table of Contents
 - [Overview](#overview)
 - [Components](#components)
